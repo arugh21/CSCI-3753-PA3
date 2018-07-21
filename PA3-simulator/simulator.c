@@ -54,7 +54,7 @@ static long procs=MAXPROCESSES;
 #define CARP(reason) carp((reason),__FILE__,__LINE__)
 
 // always print the result of a test
-inline void check(int boolean, char *boolstr, char *file, int line) {
+void check(int boolean, char *boolstr, char *file, int line) {
     if (!boolean) {
         fprintf(stderr,"ERROR: %s failed in line %d of file %s\n",
                 boolstr,line,file);
@@ -65,7 +65,7 @@ inline void check(int boolean, char *boolstr, char *file, int line) {
 }
 
 // die if an assertion fails.
-inline void assert(int boolean, char *boolstr, char *file, int line) {
+void assert(int boolean, char *boolstr, char *file, int line) {
     if (!boolean) {
         fprintf(stderr,"Assertion %s failed in line %d of file %s\n",
                 boolstr,line,file);
@@ -74,7 +74,7 @@ inline void assert(int boolean, char *boolstr, char *file, int line) {
 }
 
 // report failing assertions without bombing out... keeps running
-inline int posit(int boolean, char *boolstr, char *file, int line) {
+int posit(int boolean, char *boolstr, char *file, int line) {
     if (!boolean)
         fprintf(stderr,"Assertion %s failed in line %d of file %s\n",
                 boolstr,line,file);
@@ -82,14 +82,14 @@ inline int posit(int boolean, char *boolstr, char *file, int line) {
 }
 
 // die on a fatal error
-inline void die(char *condition, char *file, int line) {
+void die(char *condition, char *file, int line) {
     fprintf(stderr,"Fatal error: %s at line %d of file %s\n",
         condition,line,file);
     exit(1);
 }
 
 // print a non-fatal error
-inline void carp(char *condition, char *file, int line) {
+void carp(char *condition, char *file, int line) {
     fprintf(stderr,"Non-fatal error: %s at line %d of file %s\n",
 	condition,line,file);
 }

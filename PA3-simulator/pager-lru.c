@@ -15,6 +15,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include "simulator.h"
 
@@ -31,6 +32,9 @@ void pageit(Pentry q[MAXPROCESSES]) {
     /* Local vars */
     int proctmp;
     int pagetmp;
+    int minproc = 0;
+    int minpage = 0;
+    int ticktmp;
 
     /* initialize static vars on first run */
     if(!initialized){
@@ -42,10 +46,54 @@ void pageit(Pentry q[MAXPROCESSES]) {
 	initialized = 1;
     }
 
-    /* TODO: Implement LRU Paging */
-    fprintf(stderr, "pager-lru not yet implemented. Exiting...\n");
-    exit(EXIT_FAILURE);
+    /* DONE: Implement LRU Paging */
+    for(proctmp=0;proctmp<MAXPROCESSES; proctmp++){
+	if(q[proctmp].active){
+		//printf("Paging for process %d\n",proctmp);
+		pagetmp = q[proctmp].pc/PAGESIZE;
+		if(!q[proctmp].pages[pagetmp]){
+			if(!pagein(proctmp,pagetmp)){
+				/*Find the process which is both active and has the lowest timestamp, and swap it out*/
+				minproc = 0;
+				minpage = 0;
+				ticktmp = tick;
+				for(int i=0;i<MAXPROCESSES;i++){
+					for(int j=0;j<MAXPROCPAGES;j++){
+						if((timestamps[i][j]<ticktmp) && (q[i].pages[j])){
+							ticktmp = timestamps[i][j];
+							minproc = i;
+							minpage = j;
+						}
+					}
+				}
+				if(!pageout(minproc,minpage)){
+					printf("Ruh roh, pageout did not work with process %d, page %d\n",minproc,minpage);
+					//exit(EXIT_FAILURE);
+				}
+				else{
+					printf("Process %d, Page %d evicted\n",minproc,minpage);
+				}
+		/*Set the timestamp to the current tick to track when it is used*/
+				timestamps[proctmp][pagetmp] = tick;
+
+			}
+			else{
+				timestamps[proctmp][pagetmp] = tick;
+			}
+		}
+		else{
+			printf("Process %d page %d swapped in\n",proctmp,pagetmp);
+			timestamps[proctmp][pagetmp] = tick;
+		}
+		
+	}
+
+    }
+
+    //fprintf(stderr, "pager-lru not yet implemented. Exiting...\n");
+    //exit(EXIT_FAILURE);
 
     /* advance time for next pageit iteration */
     tick++;
+    //printf("pageit() called %d times",tick);
 }
