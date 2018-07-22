@@ -29,6 +29,11 @@ void pageit(Pentry q[MAXPROCESSES]) {
     static int tick = 1; // artificial time
     static int timestamps[MAXPROCESSES][MAXPROCPAGES];
 
+    /*Output file for writing page sequence*/
+    //FILE* write_file;
+
+    //write_file = fopen("output.txt","a");
+
     /* Local vars */
     int proctmp;
     int pagetmp;
@@ -51,11 +56,18 @@ void pageit(Pentry q[MAXPROCESSES]) {
 	if(q[proctmp].active){
 		//printf("Paging for process %d\n",proctmp);
 		pagetmp = q[proctmp].pc/PAGESIZE;
+		if(pagetmp > MAXPROCPAGES){
+			printf("Page Fault");
+			exit(EXIT_FAILURE);
+		}
+		//fprintf(write_file,"%d %d,",proctmp,pagetmp);
 		if(!q[proctmp].pages[pagetmp]){
+			//fprintf(write_file,"%d %d,",proctmp,pagetmp);
 			if(!pagein(proctmp,pagetmp)){
 				/*Find the process which is both active and has the lowest timestamp, and swap it out*/
-				minproc = 0;
-				minpage = 0;
+				//fprintf(write_file,"%d %d,",proctmp,pagetmp);
+				minproc = -1;
+				minpage = -1;
 				ticktmp = tick;
 				for(int i=0;i<MAXPROCESSES;i++){
 					for(int j=0;j<MAXPROCPAGES;j++){
@@ -66,23 +78,25 @@ void pageit(Pentry q[MAXPROCESSES]) {
 						}
 					}
 				}
+				if(minproc == -1 || minpage == -1){
+					break;
+				}
 				if(!pageout(minproc,minpage)){
 					printf("Ruh roh, pageout did not work with process %d, page %d\n",minproc,minpage);
+					break;
 					//exit(EXIT_FAILURE);
 				}
 				else{
-					printf("Process %d, Page %d evicted\n",minproc,minpage);
+					//printf("Process %d, Page %d evicted\n",minproc,minpage);
 				}
 		/*Set the timestamp to the current tick to track when it is used*/
-				timestamps[proctmp][pagetmp] = tick;
-
 			}
 			else{
-				timestamps[proctmp][pagetmp] = tick;
+			//printf("Process %d page %d swapped in\n",proctmp,pagetmp);
+			timestamps[proctmp][pagetmp] = tick;
 			}
 		}
 		else{
-			printf("Process %d page %d swapped in\n",proctmp,pagetmp);
 			timestamps[proctmp][pagetmp] = tick;
 		}
 		
@@ -95,5 +109,6 @@ void pageit(Pentry q[MAXPROCESSES]) {
 
     /* advance time for next pageit iteration */
     tick++;
+    //fclose(write_file);
     //printf("pageit() called %d times",tick);
 }
