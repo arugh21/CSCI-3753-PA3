@@ -6,7 +6,7 @@ LFLAGS = -g -Wall -Wextra
 
 .PHONY: all clean
 
-all: test-basic test-lru test-predict test-api
+all: test-basic test-lru test-predict test-api pgenerate
 
 test-basic: simulator.o pager-basic.o
 	$(CC) $(LFLAGS) $^ -o $@
@@ -18,6 +18,9 @@ test-predict: simulator.o pager-predict.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 test-api: simulator.o api-test.o
+	$(CC) $(LFLAGS) $^ -o $@
+
+pgenerate: pgenerate.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 simulator.o: simulator.c programs.c simulator.h
@@ -35,8 +38,11 @@ pager-predict.o: pager-predict.c simulator.h
 api-test.o:  api-test.c simulator.h
 	$(CC) $(CFLAGS) $<
 
+pgenerate.o: pgenerate.c
+	$(CC) $(CFLAGS) $<
+
 clean:
-	rm -f test-basic test-lru test-predict test-api
+	rm -f test-basic test-lru test-predict test-api pgenerate
 	rm -f *.o
 	rm -f *~
 	rm -f *.csv

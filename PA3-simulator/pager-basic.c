@@ -15,7 +15,7 @@
  *      simulator interface. Your job is to improve
  *      upon this implmentation.
  */
-
+#include <stdio.h>
 #include "simulator.h"
 
 void pageit(Pentry q[MAXPROCESSES]) {
@@ -25,15 +25,28 @@ void pageit(Pentry q[MAXPROCESSES]) {
     int pc;
     int page;
     int oldpage;
+    int pagetrack = -1;
+    int proctrack = 0;
+
+    FILE* write_file;
+    write_file = fopen("basicsequences.txt","a");
 
     /* Trivial paging strategy */
     /* Select first active process */
     for(proc=0; proc<MAXPROCESSES; proc++) {
 	/* Is process active? */
 	if(q[proc].active) {
+	    if(!(proc == proctrack)){
+		    fprintf(write_file,"\n");
+		    proctrack = proc;
+	    }
 	    /* Dedicate all work to first active process*/
 	    pc = q[proc].pc; 		        // program counter for process
-	    page = pc/PAGESIZE; 		// page the program counter needs
+	    page = pc/PAGESIZE;	    // page the program counter needs
+	    if(!(page == pagetrack)){
+		    fprintf(write_file,"%d ",page);
+		    pagetrack = page;
+	    }
 	    /* Is page swaped-out? */
 	    if(!q[proc].pages[page]) {
 		/* Try to swap in */
@@ -51,6 +64,7 @@ void pageit(Pentry q[MAXPROCESSES]) {
 		    }
 		}
 	    }
+	    fclose(write_file);
 	    /* Break loop after finding first active process */
 	    break;
 	}
