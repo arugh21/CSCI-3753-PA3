@@ -22,8 +22,9 @@ int main(){
 	FILE* sequence;
 	char buffer[1025];
 	char* pair;
-	char pagestr[2] = " ";
-	char procstr[2] = " ";
+	char* dpair;
+	char pagestr[3] = "  ";
+	char procstr[3] = "  ";
 	struct procsummary processes[MAXPROCESSES];
 	float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES];
 	int proctmp;
@@ -50,11 +51,14 @@ int main(){
 	while(fgets(buffer,5,sequence)!=NULL){
 		pair = strtok(buffer, ",\n");
 		while(pair!=NULL){
-			//printf("%s\n",pair);
-			procstr[0] = pair[0];
-			pagestr[0] = pair[2];
-			//printf("%s ",procstr);
-			//printf("%s\n",pagestr);
+			printf("%s\n",pair);
+			dpair = strtok(pair," \n");
+			while(dpair !=NULL){
+				strcpy(procstr,dpair);
+				dpair = strtok(NULL," \n");
+				strcpy(pagestr,dpair);
+				dpair = strtok(NULL," \n");
+			}
 			proctmp = atoi(procstr);
 			pagetmp = atoi(pagestr);
 			if((0<=proctmp && proctmp<=20) && (0<=pagetmp && proctmp<=20)){
@@ -68,15 +72,16 @@ int main(){
 				processes[proctmp].lastpage = processes[proctmp].currentpage;
 				printf("Current page: %d, page count: %d\n",processes[proctmp].currentpage,processes[proctmp].pagecount[pagetmp]);
 			}
+			
 			//printf("%c %c\n",proctmp,pagetmp);
-			pair = strtok(NULL,", \n");
+			pair = strtok(NULL,",\n");
 		}
 	}
 	printf("Last page used: %d\n",processes[proctmp].currentpage);	
 	processes[proctmp].pagecount[pagetmp]--;
 
 	
-	for(int i=0;i<2;i++){
+	for(int i=0;i<MAXPROCESSES;i++){
 		for(int j=0;j<MAXPROCPAGES;j++){
 			for(int k=0;k<MAXPROCPAGES;k++){
 				if(processes[i].pagecount[j]>0){
@@ -91,7 +96,7 @@ int main(){
 	}
 	
 		
-	for(int i=0;i<2;i++){
+	for(int i=0;i<MAXPROCESSES;i++){
 		printf("Process %d Summary: \n\n",i);
 		for(int j=0;j<MAXPROCPAGES;j++){
 			printf("Page %d:\n",j);

@@ -15,14 +15,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include<stdbool.h>
+#include <stdbool.h>
 
+#include "pgenfunction.h"
 #include "simulator.h"
 
 struct ptrackinfo {
 	int firstchance;
 	int timestamp;
 };
+
+int pintegrate(int process, int page, float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES]);
 
 int LRUevict(int tick, struct ptrackinfo pageinfo[MAXPROCESSES][MAXPROCPAGES],Pentry q[MAXPROCESSES]){
 	int minproc = -1;
@@ -51,6 +54,21 @@ int LRUevict(int tick, struct ptrackinfo pageinfo[MAXPROCESSES][MAXPROCPAGES],Pe
 	}
 	return 0;
 }
+
+int pagepredict(int process, int page, float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES]){
+	int nextlikelypage=-1;
+	float maxP=0;
+	for(int i=0;i<MAXPROCPAGES;i++){
+		if (pdist[process][page][i]>maxP){
+			maxP = pdist[process][page][i];
+			nextlikelypage = i;
+		}
+	}
+	if(nextlikelypage == -1){
+		//printf("Couldn't find Next Page");
+	}
+	return nextlikelypage;
+}
 				
 
 void pageit(Pentry q[MAXPROCESSES]) {
@@ -62,15 +80,18 @@ void pageit(Pentry q[MAXPROCESSES]) {
     static int initialized = 0;
     static int tick = 1; // artificial time
     static struct ptrackinfo pageinfo [MAXPROCESSES][MAXPROCPAGES];
-    static int recordingno[MAXPROCESSES];
+    //static int recordingno[MAXPROCESSES];
+    static float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES];
+    static int predictive = 0;
 
     /* Local vars */
     int proctmp;
     int pagetmp;
-    bool printline = false;
+    int nlp;
+    //bool printline = false;
 
-    FILE* write_file;
-    write_file = fopen("sequences.txt","a");
+    //FILE* write_file;
+    //write_file = fopen("sequences.txt","a");
 
     /* initialize static vars on first run */
     if(!initialized){
@@ -79,8 +100,11 @@ void pageit(Pentry q[MAXPROCESSES]) {
 		for(pagetmp=0;pagetmp<MAXPROCPAGES;pagetmp++){
 			pageinfo[proctmp][pagetmp].firstchance = 0;
 			pageinfo[proctmp][pagetmp].timestamp = 0;
+			for(int i=0;i<MAXPROCPAGES;i++){
+				pdist[proctmp][pagetmp][i] = 0.0;
+			}
 		}
-		recordingno[proctmp] = -1;
+		//recordingno[proctmp] = -1;
 	}
 	initialized = 1;
     }
@@ -96,11 +120,14 @@ void pageit(Pentry q[MAXPROCESSES]) {
 			exit(EXIT_FAILURE);
 		}
 		
+		/*
 		if(!(pagetmp == recordingno[proctmp])){
 			fprintf(write_file,"%d %d,",proctmp,pagetmp);
 			recordingno[proctmp] = pagetmp;
-			printline = true;
+			//printline = true;
 		}
+		*/
+
 	//Check if page is already swapped in and attempt to swap it in
 		if(!q[proctmp].pages[pagetmp]){
 			if(!pagein(proctmp,pagetmp)){
@@ -109,32 +136,51 @@ void pageit(Pentry q[MAXPROCESSES]) {
 				}
 			}
 			else{
+				pintegrate(proctmp,pagetmp,pdist);
 				pageinfo[proctmp][pagetmp].timestamp = tick;
 			}
 			
 		}
 		else{
+			pintegrate(proctmp,pagetmp,pdist);
 			pageinfo[proctmp][pagetmp].timestamp = tick;
 			pageinfo[proctmp][pagetmp].firstchance = 0;
 		}
-		if(!q[proctmp].pages[pagetmp+1]){
-			if(!pagein(proctmp,(pagetmp+1))){
+			
+		if(predictive){
+			nlp = pagepredict(proctmp,pagetmp,pdist);
+			if(nlp == -1){
+				break;
+			}
+		}
+		else{
+			nlp = pagetmp+1;
+		}
+		
+		//nlp = pagetmp+1;
+		if(!q[proctmp].pages[nlp]){
+			if(!pagein(proctmp,(nlp))){
 				if(!LRUevict(tick,pageinfo,q)){
 					break;
 				}
 			}
 		}
 		else{
-			pageinfo[proctmp][pagetmp+1].timestamp = tick;
-			pageinfo[proctmp][pagetmp+1].firstchance = 0;
+			pageinfo[proctmp][nlp].timestamp = tick;
+			pageinfo[proctmp][nlp].firstchance = 0;
 		}
 	}
     }
-    if(printline){
+    /*if(printline){
 	    fprintf(write_file,"\n");
 	    printline = false;
-    }
-    fclose(write_file);
+    }*/
+
+    //fclose(write_file);
     /* advance time for next pageit iteration */
     tick++;
+    if(!predictive){
+	    if(tick >= 10000) predictive = 1;
+    }
+    printf("%d\n",tick);
 }

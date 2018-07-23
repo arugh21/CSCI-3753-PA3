@@ -14,7 +14,7 @@ test-basic: simulator.o pager-basic.o
 test-lru: simulator.o pager-lru.o
 	$(CC) $(LFLAGS) $^ -o $@
 
-test-predict: simulator.o pager-predict.o
+test-predict: simulator.o pager-predict.o pgenfunction.o
 	$(CC) $(LFLAGS) $^ -o $@
 
 test-api: simulator.o api-test.o
@@ -39,6 +39,9 @@ api-test.o:  api-test.c simulator.h
 	$(CC) $(CFLAGS) $<
 
 pgenerate.o: pgenerate.c
+	$(CC) $(CFLAGS) $<
+
+pgenfunction.o: pgenfunction.c pgenfunction.h
 	$(CC) $(CFLAGS) $<
 
 clean:
