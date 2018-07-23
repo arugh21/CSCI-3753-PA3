@@ -146,7 +146,7 @@ void pageit(Pentry q[MAXPROCESSES]) {
 			pageinfo[proctmp][pagetmp].timestamp = tick;
 			pageinfo[proctmp][pagetmp].firstchance = 0;
 		}
-			
+		/*
 		if(predictive){
 			nlp = pagepredict(proctmp,pagetmp,pdist);
 			if(nlp == -1){
@@ -156,8 +156,8 @@ void pageit(Pentry q[MAXPROCESSES]) {
 		else{
 			nlp = pagetmp+1;
 		}
-		
-		//nlp = pagetmp+1;
+		*/	
+		nlp = pagetmp+1;
 		if(!q[proctmp].pages[nlp]){
 			if(!pagein(proctmp,(nlp))){
 				if(!LRUevict(tick,pageinfo,q)){
@@ -182,5 +182,5 @@ void pageit(Pentry q[MAXPROCESSES]) {
     if(!predictive){
 	    if(tick >= 10000) predictive = 1;
     }
-    printf("%d\n",tick);
+    //printf("%d\n",tick);
 }
