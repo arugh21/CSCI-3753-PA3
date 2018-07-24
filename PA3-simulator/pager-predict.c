@@ -80,7 +80,7 @@ void pageit(Pentry q[MAXPROCESSES]) {
     static int initialized = 0;
     static int tick = 1; // artificial time
     static struct ptrackinfo pageinfo [MAXPROCESSES][MAXPROCPAGES];
-    //static int recordingno[MAXPROCESSES];
+    static int recordingno[MAXPROCESSES];
     static float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES];
     static int predictive = 0;
 
@@ -104,7 +104,7 @@ void pageit(Pentry q[MAXPROCESSES]) {
 				pdist[proctmp][pagetmp][i] = 0.0;
 			}
 		}
-		//recordingno[proctmp] = -1;
+		recordingno[proctmp] = -1;
 	}
 	initialized = 1;
     }
@@ -135,18 +135,24 @@ void pageit(Pentry q[MAXPROCESSES]) {
 						break;
 				}
 			}
-			else{
-				pintegrate(proctmp,pagetmp,pdist);
+			else{	
+				if(!(pagetmp == recordingno[proctmp]) && !(predictive)){
+					pintegrate(proctmp,pagetmp,pdist);
+					recordingno[proctmp] = pagetmp;
+				}
 				pageinfo[proctmp][pagetmp].timestamp = tick;
 			}
 			
 		}
 		else{
-			pintegrate(proctmp,pagetmp,pdist);
+			if(!(pagetmp == recordingno[proctmp]) && !(predictive)){
+				pintegrate(proctmp,pagetmp,pdist);
+				recordingno[proctmp] = pagetmp;
+			}
 			pageinfo[proctmp][pagetmp].timestamp = tick;
 			pageinfo[proctmp][pagetmp].firstchance = 0;
 		}
-		/*
+		
 		if(predictive){
 			nlp = pagepredict(proctmp,pagetmp,pdist);
 			if(nlp == -1){
@@ -154,10 +160,15 @@ void pageit(Pentry q[MAXPROCESSES]) {
 			}
 		}
 		else{
-			nlp = pagetmp+1;
+			if(pagetmp == 19){
+				nlp = 0;
+			}
+			else{
+				nlp = pagetmp+1;
+			}
 		}
-		*/	
-		nlp = pagetmp+1;
+			
+		//nlp = pagetmp+1;
 		if(!q[proctmp].pages[nlp]){
 			if(!pagein(proctmp,(nlp))){
 				if(!LRUevict(tick,pageinfo,q)){
@@ -180,7 +191,20 @@ void pageit(Pentry q[MAXPROCESSES]) {
     /* advance time for next pageit iteration */
     tick++;
     if(!predictive){
-	    if(tick >= 10000) predictive = 1;
+	    if(tick >= 75000) predictive = 1;
     }
+    /*
+    if(tick == 200000){
+	    for(int i=0;i<MAXPROCESSES;i++){
+		    printf("Process %d\n",i);
+		    for(int j=0;j<MAXPROCPAGES;j++){
+			    printf("\nPage %d\n",j);
+			    for(int k=0;k<MAXPROCPAGES;k++){
+				    printf("%d: %f   ",k,pdist[i][j][k]);
+			    }
+		    }
+	    }
+    }
+    */
     //printf("%d\n",tick);
 }

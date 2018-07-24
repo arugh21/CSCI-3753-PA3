@@ -37,21 +37,29 @@ int pintegrate(int process,int page,float pdist[MAXPROCESSES][MAXPROCPAGES][MAXP
 		initialized = 1;
 	}
 
-
+	//printf("Current process: %d\n",process);
 	processes[process].currentpage = page;
+	//printf("Current page: %d\n",processes[process].currentpage);
 	processes[process].pagecount[page]++;
+	//printf("Current pagecount: %d\n",processes[process].pagecount[page]);
 	if(processes[process].lastpage != -1){
 		processes[process].nextpages[processes[process].lastpage][page]++;
 	}
+	processes[process].lastpage = processes[process].currentpage;
 
 	divisor = processes[process].pagecount[page];
 	if(divisor <=0){
 		return 0;
 	}
+	//printf("Divisor: %f\n",divisor);
+	//printf("Updating prob for process %d, page %d\n",process,page);
 	for(int i=0;i<MAXPROCPAGES;i++){
-		dividend = processes[process].pagecount[page];
+		dividend = processes[process].nextpages[page][i];
+		//printf("\nDividend: %f",dividend);
 		pdist[process][page][i] = dividend/divisor;
+		//printf(" %d: %f ",i,pdist[process][page][i]);
 	}
+	//printf("\n");
 
 	return 0;
 
