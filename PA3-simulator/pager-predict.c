@@ -21,35 +21,36 @@
 #include "simulator.h"
 
 struct ptrackinfo {
-	int firstchance;
-	int timestamp;
+	int firstchance[MAXPROCPAGES];
+	int timestamp[MAXPROCPAGES];
+	int maxframes;
+	int framesinuse;
+	int maxpageused;
 };
 
 int pintegrate(int process, int page, float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES]);
 
-int LRUevict(int tick, struct ptrackinfo pageinfo[MAXPROCESSES][MAXPROCPAGES],Pentry q[MAXPROCESSES]){
-	int minproc = -1;
+int LRUevict(int process,int tick, struct ptrackinfo pageinfo[MAXPROCESSES],Pentry q[MAXPROCESSES]){
 	int minpage = -1;
 	int ticktmp = tick;
 
 	for(int i=0;i<MAXPROCESSES;i++){
-		for(int j=0;j<MAXPROCPAGES;j++){
-			//printf("Timestamp: %d",pageinfo[i][j].timestamp);
-			if((pageinfo[i][j].timestamp < ticktmp) && q[i].pages[j]){
-				ticktmp = pageinfo[i][j].timestamp;
-				minproc = i;
-				minpage = j;
-			}
+		//printf("Timestamp: %d",pageinfo[i][j].timestamp);
+		if((pageinfo[process].timestamp[i] < ticktmp) && q[process].pages[i]){
+			ticktmp = pageinfo[process].timestamp[i];				
+			minpage = i;
 		}
+		
 	}
-	if(minproc == -1 || minpage == -1){
+
+	if( minpage == -1){
 		return -1;
 	}
-	if(pageinfo[minproc][minpage].firstchance == 0){
-		pageinfo[minproc][minpage].firstchance = 1;
+	if(pageinfo[process].firstchance[minpage] == 0){
+		pageinfo[process].firstchance[minpage] = 1;
 		return -1;
 	}
-	if(!pageout(minproc,minpage)){
+	if(!pageout(process,minpage)){
 		return -1;
 	}
 	return 0;
@@ -79,7 +80,7 @@ void pageit(Pentry q[MAXPROCESSES]) {
     /* Static vars */
     static int initialized = 0;
     static int tick = 1; // artificial time
-    static struct ptrackinfo pageinfo [MAXPROCESSES][MAXPROCPAGES];
+    static struct ptrackinfo pageinfo [MAXPROCESSES];
     static int recordingno[MAXPROCESSES];
     static float pdist[MAXPROCESSES][MAXPROCPAGES][MAXPROCPAGES];
     static int predictive = 0;
@@ -98,12 +99,15 @@ void pageit(Pentry q[MAXPROCESSES]) {
 	/* Init complex static vars here */
 	for(proctmp = 0; proctmp < MAXPROCESSES; proctmp++){
 		for(pagetmp=0;pagetmp<MAXPROCPAGES;pagetmp++){
-			pageinfo[proctmp][pagetmp].firstchance = 0;
-			pageinfo[proctmp][pagetmp].timestamp = 0;
+			pageinfo[proctmp].firstchance[pagetmp] = 0;
+			pageinfo[proctmp].timestamp[pagetmp] = 0;
 			for(int i=0;i<MAXPROCPAGES;i++){
 				pdist[proctmp][pagetmp][i] = 0.0;
 			}
 		}
+		pageinfo[proctmp].framesinuse = 0;
+		pageinfo[proctmp].maxpageused = 0;
+		pageinfo[proctmp].maxframes = 5;
 		recordingno[proctmp] = -1;
 	}
 	initialized = 1;
@@ -119,6 +123,9 @@ void pageit(Pentry q[MAXPROCESSES]) {
 			printf("Page Fault");
 			exit(EXIT_FAILURE);
 		}
+		if(pagetmp>pageinfo[proctmp].maxpageused){
+			pageinfo[proctmp].maxpageused = pagetmp;
+		}
 		
 		/*
 		if(!(pagetmp == recordingno[proctmp])){
@@ -130,29 +137,49 @@ void pageit(Pentry q[MAXPROCESSES]) {
 
 	//Check if page is already swapped in and attempt to swap it in
 		if(!q[proctmp].pages[pagetmp]){
-			if(!pagein(proctmp,pagetmp)){
-				if (!LRUevict(tick,pageinfo,q)){
-						break;
+			if(pageinfo[proctmp].framesinuse < pageinfo[proctmp].maxframes){
+				if(!pagein(proctmp,pagetmp)){
+					if (!LRUevict(proctmp,tick,pageinfo,q)){
+							break;
+					}
+					else{
+						pageinfo[proctmp].framesinuse--;
+					}
+				}
+				else{	
+					if(!(pagetmp == recordingno[proctmp]) && !(predictive)){
+						pintegrate(proctmp,pagetmp,pdist);
+						recordingno[proctmp] = pagetmp;
+					}
+					pageinfo[proctmp].framesinuse++;
+					pageinfo[proctmp].timestamp[pagetmp] = tick;
 				}
 			}
-			else{	
-				if(!(pagetmp == recordingno[proctmp]) && !(predictive)){
-					pintegrate(proctmp,pagetmp,pdist);
-					recordingno[proctmp] = pagetmp;
+			else{
+				if(!LRUevict(proctmp,tick,pageinfo,q)){
+					break;
 				}
-				pageinfo[proctmp][pagetmp].timestamp = tick;
+				else{
+					pageinfo[proctmp].framesinuse--;
+				}
+				if(!pagein(proctmp,pagetmp)){
+					break;
+				}
+				else{
+					pageinfo[proctmp].framesinuse++;
+				}
 			}
-			
 		}
 		else{
 			if(!(pagetmp == recordingno[proctmp]) && !(predictive)){
 				pintegrate(proctmp,pagetmp,pdist);
 				recordingno[proctmp] = pagetmp;
 			}
-			pageinfo[proctmp][pagetmp].timestamp = tick;
-			pageinfo[proctmp][pagetmp].firstchance = 0;
+			pageinfo[proctmp].timestamp[pagetmp] = tick;
+			pageinfo[proctmp].firstchance[pagetmp] = 0;
 		}
-		
+
+	//Load next most likely page if predictive, next page if not
 		if(predictive){
 			nlp = pagepredict(proctmp,pagetmp,pdist);
 			if(nlp == -1){
@@ -170,17 +197,93 @@ void pageit(Pentry q[MAXPROCESSES]) {
 			
 		//nlp = pagetmp+1;
 		if(!q[proctmp].pages[nlp]){
-			if(!pagein(proctmp,(nlp))){
-				if(!LRUevict(tick,pageinfo,q)){
+			if(pageinfo[proctmp].framesinuse < pageinfo[proctmp].maxframes){
+				if(!pagein(proctmp,(nlp))){
+					if(!LRUevict(proctmp,tick,pageinfo,q)){
+						break;
+					}
+					else{
+						pageinfo[proctmp].framesinuse--;
+					}
+				}
+				else{
+					pageinfo[proctmp].framesinuse++;
+				}
+			}
+			
+			else{
+				if(!LRUevict(proctmp,tick,pageinfo,q)){
+						break;
+				}
+				else{
+					pageinfo[proctmp].framesinuse--;
+				}
+				if(!pagein(proctmp,nlp)){
 					break;
+				}
+				else{
+					pageinfo[proctmp].framesinuse++;
+				}
+			}
+			
+
+		}
+		else{
+			pageinfo[proctmp].timestamp[nlp] = tick;
+			pageinfo[proctmp].firstchance[nlp] = 0;
+		}
+
+		
+		if(predictive){
+			nlp = pagepredict(proctmp,nlp,pdist);
+			if(nlp == -1){
+				break;
+			}
+		}
+		else{
+			if(nlp == 19){
+				nlp = 0;
+			}
+			else{
+				nlp = nlp+1;
+			}
+		}
+		if(!q[proctmp].pages[nlp]){
+			if(pageinfo[proctmp].framesinuse < pageinfo[proctmp].maxframes){
+				if(!pagein(proctmp,nlp)){
+					if(!LRUevict(proctmp,tick,pageinfo,q)){
+						break;
+					}
+					else{
+						pageinfo[proctmp].framesinuse--;
+					}
+				}
+				else{
+					pageinfo[proctmp].framesinuse++;
 				}
 			}
 		}
 		else{
-			pageinfo[proctmp][nlp].timestamp = tick;
-			pageinfo[proctmp][nlp].firstchance = 0;
+			pageinfo[proctmp].timestamp[nlp] = tick;
+			pageinfo[proctmp].firstchance[nlp] = 0;
+		}
+		
+
+	}
+	/*
+	else{
+		for(int i=0; i<MAXPROCPAGES;i++){
+			LRUevict(proctmp,tick,pageinfo,q);
+		}
+		pageinfo[proctmp].maxframes = 0;
+		for(int i=0; i<MAXPROCESSES;i++){
+			if(pageinfo[proctmp].maxframes == 5){
+				pageinfo[proctmp].maxframes = 10;
+				break;
+			}
 		}
 	}
+	*/
     }
     /*if(printline){
 	    fprintf(write_file,"\n");
@@ -193,18 +296,20 @@ void pageit(Pentry q[MAXPROCESSES]) {
     if(!predictive){
 	    if(tick >= 75000) predictive = 1;
     }
-    /*
+    
     if(tick == 200000){
 	    for(int i=0;i<MAXPROCESSES;i++){
-		    printf("Process %d\n",i);
+		    printf("Process %d, max page = %d, pages in use = %d\n",i,pageinfo[i].maxpageused,pageinfo[i].framesinuse);
+		    /*
 		    for(int j=0;j<MAXPROCPAGES;j++){
 			    printf("\nPage %d\n",j);
 			    for(int k=0;k<MAXPROCPAGES;k++){
 				    printf("%d: %f   ",k,pdist[i][j][k]);
 			    }
 		    }
+		    */
 	    }
     }
-    */
+    
     //printf("%d\n",tick);
 }
